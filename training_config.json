@@ -1,0 +1,14 @@
+{
+    "dataset_path": "PSG_iTech_180W_TrainData.csv",
+    "lookback": 120,
+    "epochs": 50,
+    "batch_size": 64,
+    "validation_split": 0.2,
+    "num_panels": 9,
+    "v_mp": 20.0,
+    "i_mp": 1.1,
+    "physics_loss_weight": 0.5,
+    "model_weights_path": "AGNI_PILSTM_BEST.weights.h5",
+    "x_scaler_path": "x_scaler.pkl",
+    "y_scaler_path": "y_scaler.pkl"
+}
