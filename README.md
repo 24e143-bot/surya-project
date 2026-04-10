@@ -30,6 +30,3 @@
    streamlit run surya_app.py
    ```
 
-## 🏆 Hackathon Use Case
-This project serves as a **Digital Twin** for solar energy competitions where physical hardware cannot be moved to the judging site. It demonstrates the full technical workflow:
-**Detect -> Classify -> Optimize -> Reconfigure -> Recover.**
