@@ -1,32 +1,18 @@
-# SURYA | IoT Solar PV Intelligent Reconfiguration System
+# SURYA | IoT Solar PV Intelligence & Feed Stability Digital Twin
 
-**SURYA** is a Digital Twin dashboard designed for real-time monitoring and PSO-based reconfiguration of Solar PV arrays. It addresses the problem of power loss due to partial shading and faults using AI (LSTM) and Optimization (PSO).
+**SURYA** is a Unified Digital Twin dashboard designed for real-time monitoring, maintenance prediction, and adaptive grid balancing. It solves the dual problem of solar power loss due to faults and grid phase imbalance using a multi-layer optimization approach.
 
 ## 🚀 Key Features
-- **Fault Injection Control:** Simulate real-world shading and hotspots.
+- **Fault Injection Control:** Simulate real-world shading, soiling, and hotspot faults.
 - **Intelligent Reconfiguration:** PSO-driven TCT (Total-Cross-Tied) layout optimization.
-- **PI-LSTM Integration:** Predictive monitoring of system health and power output.
-- **Interactive Heatmap:** Visual irradiance distribution before and after optimization.
-- **Automated KPI Tracking:** Instant calculation of Power Recovery and Efficiency Gains.
+- **Physics-Informed RUL:** Predictive health metrics (HI) and Remaining Useful Life (Days).
+- **Feeder Stability Layer:** Real-time IEEE 13-bus simulation with adaptive phase balancing.
+- **Hosting Capacity Analysis:** Dynamic HC trend monitoring with hysteresis-based switching logic.
+- **Automated KPI Tracking:** Tracking of Power Recovery, Switches Saved, and IoT Latency.
 
 ## 🛠️ Tech Stack
-- **Frontend:** Streamlit
-- **Visualization:** Plotly (Dynamic Graphs & Heatmaps)
-- **Algorithm:** Particle Swarm Optimization (PSO)
-- **Predictive Model:** PI-LSTM (AI)
+- **Frontend:** Streamlit (Premium Dark Theme)
+- **Visualization:** Plotly (Phase Bar Charts, HC Trends & Heatmaps)
+- **Algorithm:** Particle Swarm Optimization (PSO) & Hysteresis Logic
+- **Predictive Model:** PI-LSTM (AI) & Physics-Informed Degradation Models
 - **Data Handling:** NumPy, Pandas
-
-## 📦 Installation
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/surya-digital-twin.git
-   ```
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Run the app:
-   ```bash
-   streamlit run surya_app.py
-   ```
-
