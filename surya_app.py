@@ -14,6 +14,7 @@ import time, os
 import random
 from dataclasses import dataclass
 from typing import List, Dict
+from feeder_backend import get_feeder_data
 
 # ==========================================
 # PART 1: BACKEND (Merged surya_backend.py)
@@ -316,4 +317,138 @@ with c_conv:
     fig2.update_layout(**PLOTLY_BASE, height=300, xaxis_title="Iteration", yaxis_title="Power (W)")
     st.plotly_chart(fig2, use_container_width=True)
 
-st.markdown(f'<div style="text-align:center;padding:1rem;background:#0a1628;border-radius:10px;font-family:\'Share Tech Mono\';font-size:0.75rem;color:#475569;">SURYA DIGITAL TWIN v2.1 | PORTABLE EDITION | FAULT: {res.fault_classification} | MOVED: {len(m_list)} PANELS</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center;padding:1rem;background:#0a1628;border-radius:10px;font-family:\'Share Tech Mono\';font-size:0.75rem;color:#475569;">SURYA | SOLAR PV INTELLIGENCE COMPLETE | FAULT: {res.fault_classification} | RUL HEALTHY</div>', unsafe_allow_html=True)
+
+# ==========================================
+# PHASE 2: FEEDER STABILITY LAYER
+# ==========================================
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;"><div style="font-family:\'Rajdhani\',sans-serif;font-size:2rem;font-weight:700;color:#06b6d4;letter-spacing:4px;text-transform:uppercase;">Phase 2: Feeder Stability Layer</div><div style="font-family:\'Share Tech Mono\',monospace;font-size:0.7rem;color:#475569;letter-spacing:2px;text-transform:uppercase;margin-top:0.2rem;">Adaptive Grid Balancing & Hosting Capacity Support</div></div><hr style="border-color:#06b6d4;margin:1rem 0;opacity:0.3;">', unsafe_allow_html=True)
+
+f_data = get_feeder_data()
+
+# 1. Feeder Status Indicator (New Top Bar for this section)
+current_feeder = f_data["feeder_array"][-1]
+f_name = f"Feeder {current_feeder} Active"
+f_color = "#10b981" if current_feeder == 1 else "#f59e0b"
+st.markdown(f"""
+<div style="background:#0a1628; border:1px solid {f_color}; border-radius:10px; padding:0.6rem; text-align:center; margin-bottom:1.5rem;">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:1.1rem; font-weight:700; color:{f_color}; letter-spacing:2px; text-transform:uppercase;">{f_name}</span>
+    <span style="margin-left:15px; font-size:0.75rem; color:#475569; font-family:'Share Tech Mono';">INTELLIGENT HYSTERESIS SWITCHING ACTIVE</span>
+</div>
+""", unsafe_allow_html=True)
+
+# Feeder KPIs
+fk1, fk2, fk3, fk4 = st.columns(4)
+fk1.markdown(kpi_html("Inverter Input", f_data["inverter_kw"], "kW", "#06b6d4"), unsafe_allow_html=True)
+hc_util = (f_data["hc_smooth"][-1] / 150.0) * 100
+fk2.markdown(kpi_html("Hosting Utilization", f"{hc_util:.1f}", "%", "#34d399"), unsafe_allow_html=True)
+
+# 5. Improved Grid Relief Metric with Total vs Avoided
+fk3.markdown(f"""
+<div style="background:#0a1628;border:1px solid #1e3a5f;border-top:3px solid #fbbf24;border-radius:10px;padding:0.95rem 0.8rem;text-align:center;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:1.5rem;color:#fbbf24;font-weight:700;">{f_data["switch_saved"]} <span style="font-size:0.7rem; color:#475569;">/ {f_data['total_ops']}</span></div>
+    <div style="font-size:0.6rem;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-top:0.4rem;">Switches Avoided</div>
+    <div style="font-size:0.5rem;color:#475569;margin-top:2px;">Compared to baseline switching operation</div>
+</div>
+""", unsafe_allow_html=True)
+
+# 1. Voltage Status Enhancement (Vmax/Vmin display)
+v_status = "NORMAL"
+v_color = "#10b981"
+if f_data["vmax"] > 1.08 or f_data["vmin"] < 0.92:
+    v_status = "VIOLATION"
+    v_color = "#ef4444"
+
+v_label = f"{v_status}"
+v_subtext = f"Vmax: {f_data['vmax']} | Vmin: {f_data['vmin']} pu"
+
+fk4.markdown(f"""
+<div style="background:#0a1628;border:1px solid #1e3a5f;border-top:3px solid {v_color};border-radius:10px;padding:1.1rem 0.8rem;text-align:center;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:1.3rem;color:{v_color};font-weight:700;">{v_label}</div>
+    <div style="font-size:0.55rem;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-top:0.4rem;">{v_subtext}</div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+fc1, fc2 = st.columns([1, 1.5])
+
+with fc1:
+    section_title("≡", "Phase Balance visualization")
+    
+    # 4. Phase Imbalance Metric (Physical Realism)
+    v_phases = [f_data['phase_r'], f_data['phase_y'], f_data['phase_b']]
+    imbalance = max(v_phases) - min(v_phases)
+    bal_status = "BALANCED" if imbalance < 0.02 else "UNBALANCED"
+    bal_color = "#10b981" if bal_status == "BALANCED" else "#ef4444"
+    
+    st.markdown(f"""
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1f3c; padding:0.5rem 1rem; border-radius:8px; margin-bottom:1rem;">
+        <div style="font-size:0.75rem; color:#94a3b8;">Phys. Imbalance: <b style="color:{bal_color}; font-family:'Share Tech Mono';">{imbalance:.3f} pu</b></div>
+        <div style="font-size:0.65rem; color:{bal_color}; font-weight:700;">({bal_status})</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    fig_phases = go.Figure(data=[
+        go.Bar(x=['Phase R', 'Phase Y', 'Phase B'], 
+               y=v_phases,
+               marker_color=['#ef4444', '#f59e0b', '#3b82f6'],
+               text=[f"{v:.3f} pu" for v in v_phases],
+               textposition='auto')
+    ])
+    fig_phases.update_layout(**PLOTLY_BASE, height=280, yaxis_range=[0.8, 1.2], showlegend=False)
+    fig_phases.add_hline(y=1.0, line_dash="dash", line_color="#475569", annotation_text="Ideal Balance")
+    st.plotly_chart(fig_phases, use_container_width=True)
+
+with fc2:
+    section_title("∿", "Hosting Capacity Trend (IEEE 13-Bus)")
+    
+    # 3. Explanation Label for Switching Logic
+    st.markdown('<div style="font-family:\'Share Tech Mono\'; font-size:0.65rem; color:#475569; margin-bottom:0.5rem;">NOTE: Feeder switching decisions based on hosting capacity thresholds (90 kW – 120 kW)</div>', unsafe_allow_html=True)
+
+    fig_hc = go.Figure()
+    
+    # 2. Threshold Lines
+    fig_hc.add_hline(y=120, line_dash="dot", line_color="#ef4444", annotation_text="Upper Limit (120kW)", annotation_position="top left")
+    fig_hc.add_hline(y=90, line_dash="dot", line_color="#34d399", annotation_text="Lower Limit (90kW)", annotation_position="bottom left")
+    
+    # Highlight violation regions (above 120 or below 90)
+    fig_hc.add_hrect(y0=120, y1=150, fillcolor="red", opacity=0.05, line_width=0)
+    fig_hc.add_hrect(y0=70, y1=90, fillcolor="green", opacity=0.03, line_width=0)
+
+    fig_hc.add_trace(go.Scatter(y=f_data['hc_raw'], mode='lines', name='Raw HC', line=dict(color='#1e3a5f', width=1)))
+    fig_hc.add_trace(go.Scatter(y=f_data['hc_smooth'], mode='lines', name='Optimized HC', line=dict(color='#06b6d4', width=3)))
+    
+    # Find switch points for annotations
+    transitions = []
+    for i in range(1, len(f_data['feeder_array'])):
+        if f_data['feeder_array'][i] != f_data['feeder_array'][i-1]:
+            transitions.append(i)
+    
+    for t in transitions:
+        fig_hc.add_annotation(x=t, y=f_data['hc_smooth'][t], text="Switch triggered", showarrow=True, arrowhead=1, font=dict(size=8, color="#fbbf24"))
+
+    fig_hc.update_layout(**PLOTLY_BASE, height=330, yaxis_title="Capacity (kW)", xaxis_title="Time Interval")
+    st.plotly_chart(fig_hc, use_container_width=True)
+
+# IoT Communication Status Bar
+st.markdown(f"""
+<div style="display:flex; justify-content:space-between; align-items:center; background:#0a1628; border:1px solid #1e3a5f; padding:0.8rem 1.5rem; border-radius:10px; margin-top:1rem;">
+    <div style="font-family:'Share Tech Mono'; font-size:0.75rem; color:#64748b;">
+        <span style="color:#06b6d4;">●</span> IoT LATENCY: <span style="color:#f0f4ff;">{f_data['latency_ms']}ms</span>
+    </div>
+    <div style="font-family:'Share Tech Mono'; font-size:0.75rem; color:#64748b;">
+        <span style="color:{'#10b981' if f_data['sensor_status'] == 'ONLINE' else '#ef4444'};">●</span> SENSOR CLUSTER: <span style="color:#f0f4ff;">{f_data['sensor_status']}</span>
+    </div>
+    <div style="font-family:'Share Tech Mono'; font-size:0.75rem; color:#64748b;">
+        <span style="color:#3b82f6;">●</span> COMM STATUS: <span style="color:#f0f4ff;">{f_data['communication_status']}</span>
+    </div>
+    <div style="font-family:'Share Tech Mono'; font-size:0.75rem; color:#64748b;">
+        <span style="color:#fbbf24;">●</span> DIGITAL TWIN: <span style="color:#f0f4ff;">V3.2 STABLE</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center;padding:1rem;background:#050c1a;border:1px solid #1e3a5f;border-radius:10px;font-family:\'Share Tech Mono\';font-size:0.7rem;color:#475569;">© 2026 SURYA PROJECT | SUSTAINABLE UNIFIED RENEWABLE YIELD & ADAPTIVE GRID ARCHITECTURE | FULL STACK DIGITAL TWIN</div>', unsafe_allow_html=True)
