@@ -37,6 +37,8 @@ class PanelState:
     temperature: float
     is_faulty: bool
     fault_type: str
+    health_index: float = 1.0
+    rul_days: int = 1000
 
 @dataclass
 class ReconfigResult:
@@ -67,9 +69,28 @@ def simulate_panel(panel_id, irradiance, fault_type, is_faulty):
     isc = STC_ISC * g_ratio
     voc = STC_VOC * temp_factor * (1 + 0.05 * np.log(g_ratio + 1e-6))
     voc = max(voc, 0)
+    
+    # Add small noise
     isc *= np.random.uniform(0.98, 1.02)
     voc *= np.random.uniform(0.98, 1.02)
-    return PanelState(panel_id, round(irradiance, 1), round(voc * 0.8, 2), round(isc * 0.95, 2), round(temp, 1), is_faulty, fault_type if is_faulty else "NONE")
+    
+    v_mpp = round(voc * 0.8, 2)
+    i_mpp = round(isc * 0.95, 2)
+    
+    # Physics-Informed RUL Computation
+    actual_power = v_mpp * i_mpp
+    expected_power = (irradiance / 1000.0) * 136.0 # 136W Reference
+    
+    health_index = actual_power / max(expected_power, 1e-6)
+    thermal_penalty = 0.005 * max(0, temp - 45)
+    health_index = max(0, min(1.0, health_index - thermal_penalty))
+    rul_days = int(health_index * 1000)
+    
+    return PanelState(
+        panel_id, round(irradiance, 1), v_mpp, i_mpp, round(temp, 1), 
+        is_faulty, fault_type if is_faulty else "NONE",
+        round(health_index, 2), rul_days
+    )
 
 def compute_tct_power(arrangement, panel_states):
     total_power = 0.0
@@ -135,6 +156,10 @@ st.markdown("""
 html, body, [data-testid="stAppViewContainer"] { background: var(--bg-deep) !important; color: #f0f4ff !important; font-family: 'Exo 2', sans-serif !important; }
 .stButton > button { background: linear-gradient(135deg, #d97706, #f59e0b) !important; color: #050c1a !important; font-family: 'Rajdhani', sans-serif !important; font-weight: 700 !important; letter-spacing: 2px; text-transform: uppercase; border: none; border-radius: 8px; width: 100%; transition: all 0.25s ease; box-shadow: 0 0 15px rgba(245,158,11,0.2); }
 .stButton > button:hover { box-shadow: 0 0 25px rgba(245,158,11,0.5); transform: translateY(-1px); }
+table { width: 100%; border-collapse: collapse; margin-top: 1rem; color: #94a3b8; font-size: 0.85rem; background: #0a1628; border-radius: 10px; overflow: hidden; }
+th { background: #1e3a5f; color: #f59e0b; padding: 12px; font-family: 'Rajdhani', sans-serif; text-transform: uppercase; letter-spacing: 1px; border: 1px solid #1e3a5f; }
+td { padding: 10px; border: 1px solid #1e3a5f; text-align: center; }
+tr:hover { background: #0d1f3c; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -197,6 +222,86 @@ k1.markdown(kpi_html("Before Reconfig", res.tct_power_before_w, "W", "#ef4444"),
 k2.markdown(kpi_html("After Reconfig", res.tct_power_after_w, "W", "#10b981"), unsafe_allow_html=True)
 k3.markdown(kpi_html("Power Recovery", f"+{res.gain_percent}", "%", "#10b981"), unsafe_allow_html=True)
 k4.markdown(kpi_html("AI Predicted", res.predicted_power_lstm, "W", "#a78bfa"), unsafe_allow_html=True)
+
+st.markdown("<hr style='border-color:#1e3a5f;'>", unsafe_allow_html=True)
+
+# ==========================================
+# NEW: PHYSICS-INFORMED RUL SECTION
+# ==========================================
+st.markdown("<hr style='border-color:#1e3a5f;'>", unsafe_allow_html=True)
+section_title("🧬", "Physics-Informed Remaining Useful Life")
+
+all_pids = [f"P{i+1}" for i in range(9)]
+rul_data = []
+
+for pid in all_pids:
+    ps = res.panel_states[pid]
+    actual_power = ps.voltage * ps.current
+    expected_power = (ps.irradiance / 1000.0) * 136.0
+    
+    # Color Logic based on pre-calculated RUL
+    if ps.rul_days > 700: color = "#10b981" # Green
+    elif ps.rul_days >= 300: color = "#f59e0b" # Amber
+    else: color = "#ef4444" # Red
+    
+    # Highlight panel ID if it is faulty
+    pid_display = f'<span style="color:{"#ef4444" if ps.is_faulty else "#94a3b8"}; font-weight:700;">{pid}</span>'
+    
+    rul_data.append({
+        "Panel": pid_display,
+        "Voltage": f"{ps.voltage} V",
+        "Current": f"{ps.current} A",
+        "Temperature": f"{ps.temperature} °C",
+        "Actual Power": f"{actual_power:.1f} W",
+        "Expected Power": f"{expected_power:.1f} W",
+        "Health Index": f"{ps.health_index:.2f}",
+        "Estimated RUL (Days)": f'<span style="color:{color}; font-weight:700;">{ps.rul_days} days</span>',
+        "RawRUL": ps.rul_days
+    })
+
+# Display Table
+df_rul = pd.DataFrame(rul_data)
+st.write(df_rul[["Panel", "Voltage", "Current", "Temperature", "Actual Power", "Expected Power", "Health Index", "Estimated RUL (Days)"]].to_html(escape=False, index=False, justify='center'), unsafe_allow_html=True)
+
+col_rec, col_exp = st.columns(2)
+
+with col_rec:
+    # Maintenance Recommendation Logic
+    riskiest = min(rul_data, key=lambda x: x["RawRUL"])
+    rec_title = "Healthy Operation"
+    rec_text = "All units functioning within acceptable degradation limits."
+    border_c = "#10b981"
+    
+    if riskiest["RawRUL"] < 300:
+        rec_title = "PRIORITY INSPECTION RECOMMENDED"
+        # Find the actual panel ID from the highligted HTML
+        pid_name = riskiest["Panel"].split('>')[-2].split('<')[0]
+        rec_text = f"Panel {pid_name} requires urgent attention due to critical power/thermal stress levels."
+        border_c = "#ef4444"
+    elif riskiest["RawRUL"] < 700:
+        rec_title = "MONITOR DEGRADATION"
+        rec_text = "Observe degradation trends; certain panels are operating below nominal health margins."
+        border_c = "#f59e0b"
+        
+    st.markdown(f"""
+    <div style="background:#0a1628; border:1px solid #1e3a5f; border-left:5px solid {border_c}; border-radius:10px; padding:1.2rem; margin-top:1rem;">
+        <div style="font-family:'Rajdhani',sans-serif; font-size:0.9rem; font-weight:700; color:{border_c}; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">{rec_title}</div>
+        <div style="font-size:0.85rem; color:#94a3b8; line-height:1.5;">{rec_text}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_exp:
+    # Step 9 - Explain relation to SURYA
+    st.markdown("""
+    <div style="background:#0a1628; border:1px solid #3b82f6; border-radius:10px; padding:1.2rem; margin-top:1rem;">
+        <div style="font-family:'Rajdhani',sans-serif; font-size:0.9rem; font-weight:700; color:#3b82f6; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">Relation to SURYA Intelligence</div>
+        <div style="font-size:0.85rem; color:#94a3b8; line-height:1.5;">
+            SURYA uses RUL to complement PSO reconfiguration. 
+            PSO restores <b>present power output</b>, while RUL estimates <b>long-term panel survivability</b>. 
+            This means SURYA performs: <i>present correction + future maintenance intelligence</i>.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("<hr style='border-color:#1e3a5f;'>", unsafe_allow_html=True)
 c_bar, c_conv = st.columns(2)
