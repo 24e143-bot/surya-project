@@ -1,6 +1,5 @@
 """
 SURYA — PSO TCT Reconfiguration (v2)
-Connects directly to your trained AGNI PI-LSTM model.
 
 HOW IT FITS IN YOUR PIPELINE:
   ┌─────────────────────────────────────────────────────────────────┐
@@ -11,26 +10,6 @@ HOW IT FITS IN YOUR PIPELINE:
   │                                      from LSTM + irradiance)   │
   └─────────────────────────────────────────────────────────────────┘
 
-DO YOU NEED TO CHANGE YOUR LSTM?  NO.
-  Your testing code already outputs: predicted_power_w, actual_power_w,
-  physical_max_w, residual_w, classification etc.
-  This script reads those LSTM outputs and uses them as inputs to PSO.
-
-HOW TO RUN:
-  Step 1  → Run your training code once  (generates .weights.h5, scalers, config)
-  Step 2  → Run your testing code once   (verifies the model is working)
-  Step 3  → Run THIS file                (loads trained model → derives per-panel
-                                          states → runs PSO → prints results)
-
-REQUIREMENTS:
-  pip install numpy pandas pywt joblib tensorflow scikit-learn
-
-FILES NEEDED IN SAME FOLDER:
-  AGNI_PILSTM_BEST.weights.h5
-  x_scaler.pkl
-  y_scaler.pkl
-  training_config.json
-  PSG_iTech_180W_TrainData.csv
 """
 
 import os
